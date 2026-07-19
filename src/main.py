@@ -364,7 +364,7 @@ def main():
                 print(f"Failed to post {item_id}.")
         
         # <--- NEW: Stop checking questions if we've hit our limit
-        if post_count >= 3:
+        if post_count >= 1:
             print("Daily limit of 3 posts reached. Shutting down gracefully.")
             break
             
