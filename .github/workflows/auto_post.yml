@@ -32,8 +32,9 @@ jobs:
 
       - name: Run Script (Generate Images & Send to Telegram)
         env:
-          TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA: ${{ secrets.TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA }}
-          TELEGRAM_CHAT_ID_SOCIAL_MEDIA: ${{ secrets.TELEGRAM_CHAT_ID_SOCIAL_MEDIA }}
+          # THE FIX: Left side stays the same, right side pulls the new Secrets!
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID_SOCIAL_MEDIA }}
         run: |
           python src/main.py
 
