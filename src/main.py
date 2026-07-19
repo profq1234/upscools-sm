@@ -335,6 +335,8 @@ def main():
         data = json.load(f)
         if isinstance(data, dict): data = [data]
     
+    post_count = 0  # <--- NEW: Initialize the tracker
+    
     for item in data:
         item_id = item.get("original_id")
         if item_id in processed_history and not TEST_MODE:
@@ -357,9 +359,15 @@ def main():
                 print(f"Successfully posted {item_id}!")
                 processed_history.append(item_id)
                 for img in generated_images: os.remove(img)
+                post_count += 1  # <--- NEW: Add 1 to the tracker after a success
             else: 
                 print(f"Failed to post {item_id}.")
         
+        # <--- NEW: Stop checking questions if we've hit our limit
+        if post_count >= 3:
+            print("Daily limit of 3 posts reached. Shutting down gracefully.")
+            break
+            
         time.sleep(10)
 
     if not TEST_MODE:
