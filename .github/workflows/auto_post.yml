@@ -2,15 +2,14 @@ name: Generate and Post Insta Carousel to Telegram
 
 on:
   schedule:
-    # Runs automatically every day at 4:00 AM UTC (9:30 AM IST)
     - cron: '0 4 * * *' 
-  workflow_dispatch: # Gives you a "Run workflow" button in the GitHub UI for manual tests
+  workflow_dispatch:
 
 jobs:
   generate-and-post:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Crucial: Allows the bot to commit the updated history file
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -33,9 +32,8 @@ jobs:
 
       - name: Run Script (Generate Images & Send to Telegram)
         env:
-          # Pulls securely from GitHub Secrets
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA: ${{ secrets.TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA }}
+          TELEGRAM_CHAT_ID_SOCIAL_MEDIA: ${{ secrets.TELEGRAM_CHAT_ID_SOCIAL_MEDIA }}
         run: |
           python src/main.py
 
@@ -45,5 +43,4 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add state/processed_history.json
           
-          # This command checks if the file changed. If yes, it commits and pushes.
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update processed history state" && git push)

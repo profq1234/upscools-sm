@@ -7,10 +7,10 @@ from jinja2 import Template
 from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID_SOCIAL_MEDIA")
 def format_highlights(text, auto_keywords=None):
     if not text:
         return ""
