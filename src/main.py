@@ -3,6 +3,7 @@ import json
 import re
 import requests
 import base64
+import time
 from jinja2 import Template
 from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
@@ -14,23 +15,23 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID_SOCIAL_MEDIA")
 def format_highlights(text, auto_keywords=None):
     if not text:
         return ""
-    
+
     # 1. Apply manual **markdown** highlights first
     text = re.sub(r'\*\*(.*?)\*\*', r'<span class="bg-yellow-300/60 semantic-bold px-[0.2em] rounded">\1</span>', text)
-    
+
     # 2. Apply dynamic keyword highlighting from JSON metadata
     if auto_keywords:
         keywords = sorted([k for k in auto_keywords if k], key=len, reverse=True)
         if keywords:
             escaped_kws = [re.escape(kw.strip()) for kw in keywords if kw.strip()]
             pattern = re.compile(rf'\b({"|".join(escaped_kws)})\b', re.IGNORECASE)
-            
+
             parts = re.split(r'(<[^>]+>)', text)
             for i in range(0, len(parts), 2):
                 if parts[i]:
                     parts[i] = pattern.sub(r'<span class="bg-yellow-300/60 semantic-bold px-[0.2em] rounded">\1</span>', parts[i])
             text = "".join(parts)
-            
+
     return text.replace("\n", "<br>")
 
 # ---------------------------------------------------------
@@ -46,21 +47,21 @@ HTML_TEMPLATE = """
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; padding: 0; }
-        .font-primary { 
-            font-family: 'Poppins', sans-serif; 
+        .font-primary {
+            font-family: 'Poppins', sans-serif;
             letter-spacing: 0.01em;
         }
         .semantic-bold {
-            font-weight: 700; 
+            font-weight: 700;
         }
     </style>
 </head>
 <body class="m-0 p-0 w-screen h-screen flex flex-col overflow-hidden">
 
     <div class="relative w-full h-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-500 p-[8px] flex flex-col">
-        
+
         <div class="relative flex-1 bg-[#fcfcfc] rounded-sm shadow-[inset_0_4px_20px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col p-6 pb-10">
-            
+
             <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/50 to-transparent pointer-events-none z-0"></div>
             <div class="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none z-0"></div>
 
@@ -79,14 +80,14 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div id="content-boundary" class="flex-1 flex flex-col justify-center w-full min-h-0 relative mb-4">
-                
+
                     {% if not is_explanation %}
-                    
+
                     <!-- ========================================== -->
                     <!-- LAYOUT A: QUESTION SLIDE                   -->
                     <!-- ========================================== -->
                     <div id="scale-target" class="flex flex-col space-y-[0.8em] w-full" style="font-size: 14px;">
-                        
+
                         <div class="w-[98%] mx-auto transform -translate-x-[2%] border-[0.13em] border-red-800 rounded-[1em] p-[1em] bg-white/70 backdrop-blur-sm shadow-sm">
                             <p class="font-primary text-[1.05em] text-red-950 leading-relaxed font-semibold">
                                 <span class="semantic-bold mr-1 text-red-700">Q.</span> {{ question_text }}
@@ -118,7 +119,7 @@ HTML_TEMPLATE = """
                     <!-- LAYOUT B: ANSWER SLIDE                     -->
                     <!-- ========================================== -->
                     <div id="scale-target" class="flex flex-col space-y-[1.2em] w-full" style="font-size: 14px;">
-                        
+
                         <div class="w-[98%] mx-auto border-[0.2em] border-green-800 rounded-[1em] p-[1.5em] bg-green-50 backdrop-blur-sm shadow-sm text-center transform -translate-x-[2%]">
                             <p class="font-primary text-[2.4em] text-green-900 font-bold tracking-widest leading-none">
                                 CORRECT: {{ correct_answer }}
@@ -150,7 +151,7 @@ HTML_TEMPLATE = """
 
                 </div>
             </div>
-            
+
             <div class="absolute bottom-3 right-4 flex items-center opacity-85">
                 {% if logo_base64 %}
                 <img src="data:image/svg+xml;base64,{{ logo_base64 }}" alt="Logo" class="w-7 h-7 rounded-md shadow-sm border border-slate-300 bg-white">
@@ -172,25 +173,25 @@ AUTO_SCALE_JS = """
 () => {
     const boundary = document.getElementById('content-boundary');
     const target = document.getElementById('scale-target');
-    
+
     if (!boundary || !target) return;
-    
+
     let currentSize = 14.0;
     const minSize = 9.0;
     const maxSize = 26.0;
     const step = 0.5;
-    
+
     while (target.scrollHeight > boundary.clientHeight && currentSize > minSize) {
         currentSize -= step;
         target.style.fontSize = currentSize + 'px';
     }
-    
+
     while (target.scrollHeight < (boundary.clientHeight - 20) && currentSize < maxSize) {
         currentSize += step;
         target.style.fontSize = currentSize + 'px';
-        
+
         if (target.scrollHeight > boundary.clientHeight) {
-            currentSize -= step; 
+            currentSize -= step;
             target.style.fontSize = currentSize + 'px';
             break;
         }
@@ -202,7 +203,7 @@ def create_images_for_question(item, output_dir="temp"):
     os.makedirs(output_dir, exist_ok=True)
     template = Template(HTML_TEMPLATE)
     generated_files = []
-    
+
     # Read the SVG file and convert to Base64
     logo_base64 = ""
     logo_path = os.path.join(os.getcwd(), "assets", "square-logo.svg")
@@ -211,7 +212,7 @@ def create_images_for_question(item, output_dir="temp"):
             logo_base64 = base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
         print(f"Warning: Could not load square-logo.svg. Error: {e}")
-    
+
     formats = {
         "format_1_evidence_inference": "UPSC Type I: Evidence & Inference",
         "format_2_assertion_reason": "UPSC Type II: Assertion & Reason",
@@ -222,15 +223,15 @@ def create_images_for_question(item, output_dir="temp"):
     category = item.get("concept_map", {}).get("primary_theme", "Polity Practice")
     exam = item.get("schema_metadata", {}).get("source_exam", "Prelims")
     item_id = item.get("original_id", "unknown_id")
-    
+
     semantic_keywords = item.get("seo", {}).get("default_semantic_keywords", [])
     related_entities = [ent.get("name") for ent in item.get("concept_map", {}).get("related_entities", []) if "name" in ent]
     dynamic_keywords_list = semantic_keywords + related_entities
-    
+
     with sync_playwright() as p:
         browser = p.chromium.launch()
         context = browser.new_context(
-            viewport={"width": 540, "height": 675}, 
+            viewport={"width": 540, "height": 675},
             device_scale_factor=2.0
         )
         page = context.new_page()
@@ -238,13 +239,13 @@ def create_images_for_question(item, output_dir="temp"):
         for format_key, title in formats.items():
             if format_key not in item:
                 continue
-                
+
             q_data = item[format_key]
-            
+
             distractor_logic = (
-                q_data.get("distractor_logic") or 
-                item.get("distractor_logic") or 
-                item.get("concept_map", {}).get("distractor_logic") or 
+                q_data.get("distractor_logic") or
+                item.get("distractor_logic") or
+                item.get("concept_map", {}).get("distractor_logic") or
                 ""
             )
 
@@ -254,7 +255,7 @@ def create_images_for_question(item, output_dir="temp"):
                 lines = raw_exp.split("\n")
             else:
                 lines = raw_exp.split(". ")
-                
+
             for s in lines:
                 s = s.strip()
                 if not s: continue
@@ -279,7 +280,7 @@ def create_images_for_question(item, output_dir="temp"):
             page.set_content(template.render(**context_data))
             page.evaluate("document.fonts.ready")
             page.evaluate(AUTO_SCALE_JS)
-            
+
             q_filename = f"{output_dir}/{item_id}_{format_key}_Q.png"
             page.screenshot(path=q_filename)
             generated_files.append(q_filename)
@@ -287,8 +288,8 @@ def create_images_for_question(item, output_dir="temp"):
             context_data["is_explanation"] = True
             page.set_content(template.render(**context_data))
             page.evaluate("document.fonts.ready")
-            page.evaluate(AUTO_SCALE_JS) 
-            
+            page.evaluate(AUTO_SCALE_JS)
+
             a_filename = f"{output_dir}/{item_id}_{format_key}_A.png"
             page.screenshot(path=a_filename)
             generated_files.append(a_filename)
@@ -333,6 +334,7 @@ def main():
     with open(data_file, "r", encoding="utf-8") as f:
         data = json.load(f)
         if isinstance(data, dict): data = [data]
+    
     for item in data:
         item_id = item.get("original_id")
         if item_id in processed_history and not TEST_MODE:
@@ -340,20 +342,26 @@ def main():
             continue
         print(f"Processing target: {item_id}")
         generated_images = create_images_for_question(item)
+        
         if TEST_MODE:
             print(f"\n🛑 TEST MODE ACTIVE. Review: {generated_images}")
-            break 
+            break
+            
         caption = item.get("social_media_export", {}).get("ctr_booster_caption", "")
         hashtags = " ".join(item.get("social_media_export", {}).get("hashtags", []))
         full_caption = f"{caption}\n\n{hashtags}"
+        
         if generated_images:
             success = send_album_to_telegram(generated_images, full_caption)
             if success:
                 print(f"Successfully posted {item_id}!")
                 processed_history.append(item_id)
                 for img in generated_images: os.remove(img)
-            else: print(f"Failed to post {item_id}.")
-        break
+            else: 
+                print(f"Failed to post {item_id}.")
+        
+        time.sleep(10)
+
     if not TEST_MODE:
         with open(state_file, "w") as f:
             json.dump(processed_history, f, indent=4)
