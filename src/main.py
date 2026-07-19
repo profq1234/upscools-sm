@@ -318,7 +318,7 @@ def send_album_to_telegram(image_paths, caption):
     return success
 
 def main():
-    TEST_MODE = True
+    TEST_MODE = False
     if not TEST_MODE and (not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID):
         print("Missing API tokens.")
         return
