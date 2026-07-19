@@ -69,7 +69,7 @@ jobs:
           TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA: ${{ secrets.TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA }}
           TELEGRAM_CHAT_ID_SOCIAL_MEDIA: ${{ secrets.TELEGRAM_CHAT_ID_SOCIAL_MEDIA }}
         run: |
-          python src/main.py
+          python -u src/main.py
 
       - name: Commit and Push Updated History State
         run: |
