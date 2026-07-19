@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID_SOCIAL_MEDIA")
+
 def format_highlights(text, auto_keywords=None):
     if not text:
         return ""
@@ -204,7 +205,6 @@ def create_images_for_question(item, output_dir="temp"):
     template = Template(HTML_TEMPLATE)
     generated_files = []
 
-    # Read the SVG file and convert to Base64
     logo_base64 = ""
     logo_path = os.path.join(os.getcwd(), "assets", "square-logo.svg")
     try:
@@ -323,25 +323,29 @@ def main():
     if not TEST_MODE and (not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID):
         print("Missing API tokens.")
         return
+        
     state_file = "state/processed_history.json"
     if os.path.exists(state_file):
         with open(state_file, "r") as f: processed_history = json.load(f)
     else: processed_history = []
+    
     data_file = "data/polity/upsc_polity_data.json"
     if not os.path.exists(data_file):
         print(f"Data file not found: {data_file}")
         return
+        
     with open(data_file, "r", encoding="utf-8") as f:
         data = json.load(f)
         if isinstance(data, dict): data = [data]
     
-    post_count = 0  # <--- NEW: Initialize the tracker
+    post_count = 0 
     
     for item in data:
         item_id = item.get("original_id")
         if item_id in processed_history and not TEST_MODE:
             print(f"Skipping {item_id}")
             continue
+            
         print(f"Processing target: {item_id}")
         generated_images = create_images_for_question(item)
         
@@ -349,9 +353,29 @@ def main():
             print(f"\n🛑 TEST MODE ACTIVE. Review: {generated_images}")
             break
             
-        caption = item.get("social_media_export", {}).get("ctr_booster_caption", "")
+        # --- NEW RICH METADATA CAPTION BUILDER ---
+        title = item.get("seo", {}).get("base_meta_title", "UPSC Practice Question")
+        base_caption = item.get("social_media_export", {}).get("ctr_booster_caption", "")
         hashtags = " ".join(item.get("social_media_export", {}).get("hashtags", []))
-        full_caption = f"{caption}\n\n{hashtags}"
+        
+        # Combine default semantic keywords and related entity names
+        semantic_kws = item.get("seo", {}).get("default_semantic_keywords", [])
+        related_entities = [ent.get("name") for ent in item.get("concept_map", {}).get("related_entities", []) if "name" in ent]
+        all_keywords = ", ".join(semantic_kws + related_entities)
+        
+        # Build the dynamic alt texts
+        alt_q = f"Multiple-choice practice question evaluating {title}, specifically testing factual recall."
+        alt_a = f"Educational explanation revealing the correct answer and distractor logic for {title}."
+
+        # Compile it all into the final caption string exactly as requested
+        full_caption = (
+            f"Title: {title}\n\n"
+            f"Caption:\n{base_caption}\n\n"
+            f"Primary Semantic Keywords:\n{all_keywords}\n\n"
+            f"Alt Text (Question Image):\n{alt_q}\n\n"
+            f"Alt Text (Answer/Explanation Image):\n{alt_a}\n\n"
+            f"Hashtags:\n{hashtags}"
+        )
         
         if generated_images:
             success = send_album_to_telegram(generated_images, full_caption)
@@ -359,13 +383,12 @@ def main():
                 print(f"Successfully posted {item_id}!")
                 processed_history.append(item_id)
                 for img in generated_images: os.remove(img)
-                post_count += 1  # <--- NEW: Add 1 to the tracker after a success
+                post_count += 1 
             else: 
                 print(f"Failed to post {item_id}.")
         
-        # <--- NEW: Stop checking questions if we've hit our limit
         if post_count >= 1:
-            print("Daily limit of 3 posts reached. Shutting down gracefully.")
+            print("Daily limit of 1 post reached. Shutting down gracefully.")
             break
             
         time.sleep(10)
