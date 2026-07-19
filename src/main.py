@@ -17,16 +17,13 @@ def format_highlights(text, auto_keywords=None):
     if not text:
         return ""
 
-    # 1. Apply manual **markdown** highlights first
     text = re.sub(r'\*\*(.*?)\*\*', r'<span class="bg-yellow-300/60 semantic-bold px-[0.2em] rounded">\1</span>', text)
 
-    # 2. Apply dynamic keyword highlighting from JSON metadata
     if auto_keywords:
         keywords = sorted([k for k in auto_keywords if k], key=len, reverse=True)
         if keywords:
             escaped_kws = [re.escape(kw.strip()) for kw in keywords if kw.strip()]
             pattern = re.compile(rf'\b({"|".join(escaped_kws)})\b', re.IGNORECASE)
-
             parts = re.split(r'(<[^>]+>)', text)
             for i in range(0, len(parts), 2):
                 if parts[i]:
@@ -35,9 +32,6 @@ def format_highlights(text, auto_keywords=None):
 
     return text.replace("\n", "<br>")
 
-# ---------------------------------------------------------
-# 1. THE JINJA2 HTML TEMPLATE (BASE64 LOGO INJECTION)
-# ---------------------------------------------------------
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -48,53 +42,33 @@ HTML_TEMPLATE = """
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; padding: 0; }
-        .font-primary {
-            font-family: 'Poppins', sans-serif;
-            letter-spacing: 0.01em;
-        }
-        .semantic-bold {
-            font-weight: 700;
-        }
+        .font-primary { font-family: 'Poppins', sans-serif; letter-spacing: 0.01em; }
+        .semantic-bold { font-weight: 700; }
     </style>
 </head>
 <body class="m-0 p-0 w-screen h-screen flex flex-col overflow-hidden">
-
     <div class="relative w-full h-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-500 p-[8px] flex flex-col">
-
         <div class="relative flex-1 bg-[#fcfcfc] rounded-sm shadow-[inset_0_4px_20px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col p-6 pb-10">
-
             <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/50 to-transparent pointer-events-none z-0"></div>
             <div class="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none z-0"></div>
-
             <div class="relative z-10 w-full h-full flex flex-col">
-
                 <div class="text-center mb-3 relative shrink-0">
                     <div class="flex justify-between items-center font-primary text-[11px] font-semibold text-slate-500 mb-1 px-2 uppercase tracking-wider">
                         <span class="text-slate-600">{{ category }}</span>
-                        <div class="flex items-center">
-                            <span class="mr-1">📍</span> {{ exam }}
-                        </div>
+                        <div class="flex items-center"><span class="mr-1">📍</span> {{ exam }}</div>
                     </div>
                     <h2 class="font-primary text-[15px] font-bold text-slate-700 uppercase tracking-widest underline decoration-[1.5px] decoration-slate-300 underline-offset-4 mb-2">
                         {{ format_title }}
                     </h2>
                 </div>
-
                 <div id="content-boundary" class="flex-1 flex flex-col justify-center w-full min-h-0 relative mb-4">
-
                     {% if not is_explanation %}
-
-                    <!-- ========================================== -->
-                    <!-- LAYOUT A: QUESTION SLIDE                   -->
-                    <!-- ========================================== -->
                     <div id="scale-target" class="flex flex-col space-y-[0.8em] w-full" style="font-size: 14px;">
-
                         <div class="w-[98%] mx-auto transform -translate-x-[2%] border-[0.13em] border-red-800 rounded-[1em] p-[1em] bg-white/70 backdrop-blur-sm shadow-sm">
                             <p class="font-primary text-[1.05em] text-red-950 leading-relaxed font-semibold">
                                 <span class="semantic-bold mr-1 text-red-700">Q.</span> {{ question_text }}
                             </p>
                         </div>
-
                         <div class="w-[98%] mx-auto space-y-[0.7em] font-primary font-medium text-[0.9em] text-blue-950 leading-relaxed text-left">
                             {% for stmt in statements %}
                             <div class="flex items-start border-[0.12em] border-blue-800/40 rounded-[0.8em] py-[0.8em] px-[0.9em] bg-white/80 shadow-sm">
@@ -103,7 +77,6 @@ HTML_TEMPLATE = """
                             </div>
                             {% endfor %}
                         </div>
-
                         <div class="w-[98%] mx-auto transform translate-x-[2%] grid grid-cols-2 gap-[0.8em] mt-[0.5em] font-primary font-medium text-[0.85em] text-green-950 text-left">
                             {% for key, val in options.items() %}
                             <div class="flex items-center border-[0.12em] border-green-700/40 rounded-[0.8em] py-[0.8em] px-[0.9em] bg-green-50/80 shadow-sm">
@@ -113,20 +86,13 @@ HTML_TEMPLATE = """
                             {% endfor %}
                         </div>
                     </div>
-
                     {% else %}
-
-                    <!-- ========================================== -->
-                    <!-- LAYOUT B: ANSWER SLIDE                     -->
-                    <!-- ========================================== -->
                     <div id="scale-target" class="flex flex-col space-y-[1.2em] w-full" style="font-size: 14px;">
-
                         <div class="w-[98%] mx-auto border-[0.2em] border-green-800 rounded-[1em] p-[1.5em] bg-green-50 backdrop-blur-sm shadow-sm text-center transform -translate-x-[2%]">
                             <p class="font-primary text-[2.4em] text-green-900 font-bold tracking-widest leading-none">
                                 CORRECT: {{ correct_answer }}
                             </p>
                         </div>
-
                         <div class="relative overflow-hidden w-[98%] mx-auto border-[0.14em] border-yellow-600 rounded-[1em] p-[1.3em] bg-yellow-50 backdrop-blur-sm shadow-sm transform translate-x-[2%]">
                             <svg class="absolute -right-4 -bottom-4 w-[7em] h-[7em] text-yellow-600/10 transform -rotate-12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7zM9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9v1z"/></svg>
                             <div class="relative z-10 font-primary text-[0.95em] font-medium text-yellow-950 space-y-[0.7em]">
@@ -138,7 +104,6 @@ HTML_TEMPLATE = """
                                 {% endfor %}
                             </div>
                         </div>
-
                         {% if distractor_logic %}
                         <div class="relative overflow-hidden w-[98%] mx-auto border-[0.14em] border-red-700 rounded-[1em] p-[1.3em] bg-red-50 backdrop-blur-sm shadow-sm transform -translate-x-[2%]">
                             <span class="absolute -right-2 -bottom-4 text-[6em] opacity-10 select-none">🚨</span>
@@ -149,48 +114,36 @@ HTML_TEMPLATE = """
                         {% endif %}
                     </div>
                     {% endif %}
-
                 </div>
             </div>
-
             <div class="absolute bottom-3 right-4 flex items-center opacity-85">
                 {% if logo_base64 %}
                 <img src="data:image/svg+xml;base64,{{ logo_base64 }}" alt="Logo" class="w-7 h-7 rounded-md shadow-sm border border-slate-300 bg-white">
                 {% endif %}
             </div>
-
         </div>
-
         <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-3/4 h-3 bg-gradient-to-b from-slate-400 to-slate-600 rounded-t-sm shadow-2xl border-t border-slate-500 z-20"></div>
     </div>
 </body>
 </html>
 """
 
-# ---------------------------------------------------------
-# 2. IMAGE GENERATION ENGINE
-# ---------------------------------------------------------
 AUTO_SCALE_JS = """
 () => {
     const boundary = document.getElementById('content-boundary');
     const target = document.getElementById('scale-target');
-
     if (!boundary || !target) return;
-
     let currentSize = 14.0;
     const minSize = 9.0;
     const maxSize = 26.0;
     const step = 0.5;
-
     while (target.scrollHeight > boundary.clientHeight && currentSize > minSize) {
         currentSize -= step;
         target.style.fontSize = currentSize + 'px';
     }
-
     while (target.scrollHeight < (boundary.clientHeight - 20) && currentSize < maxSize) {
         currentSize += step;
         target.style.fontSize = currentSize + 'px';
-
         if (target.scrollHeight > boundary.clientHeight) {
             currentSize -= step;
             target.style.fontSize = currentSize + 'px';
@@ -211,7 +164,7 @@ def create_images_for_question(item, output_dir="temp"):
         with open(logo_path, "rb") as image_file:
             logo_base64 = base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
-        print(f"Warning: Could not load square-logo.svg. Error: {e}")
+        pass
 
     formats = {
         "format_1_evidence_inference": "UPSC Type I: Evidence & Inference",
@@ -228,16 +181,12 @@ def create_images_for_question(item, output_dir="temp"):
     related_entities = [ent.get("name") for ent in item.get("concept_map", {}).get("related_entities", []) if "name" in ent]
     dynamic_keywords_list = semantic_keywords + related_entities
     
-    # Variables to hold raw text for Alt generation later
     alt_q_text = ""
     alt_a_text = ""
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        context = browser.new_context(
-            viewport={"width": 540, "height": 675},
-            device_scale_factor=2.0
-        )
+        context = browser.new_context(viewport={"width": 540, "height": 675}, device_scale_factor=2.0)
         page = context.new_page()
 
         for format_key, title in formats.items():
@@ -245,28 +194,17 @@ def create_images_for_question(item, output_dir="temp"):
                 continue
 
             q_data = item[format_key]
-
-            distractor_logic = (
-                q_data.get("distractor_logic") or
-                item.get("distractor_logic") or
-                item.get("concept_map", {}).get("distractor_logic") or
-                ""
-            )
+            distractor_logic = q_data.get("distractor_logic") or item.get("distractor_logic") or item.get("concept_map", {}).get("distractor_logic") or ""
 
             raw_exp = q_data.get("explanation", "")
             exp_points = []
-            if "\n" in raw_exp:
-                lines = raw_exp.split("\n")
-            else:
-                lines = raw_exp.split(". ")
-
+            lines = raw_exp.split("\n") if "\n" in raw_exp else raw_exp.split(". ")
             for s in lines:
                 s = s.strip()
                 if not s: continue
                 if not s.endswith("."): s += "."
                 exp_points.append(format_highlights(s, dynamic_keywords_list))
                 
-            # Extract raw text for Accessibility (Alt Text)
             raw_q = q_data.get("question_text", "")
             raw_opts = " | ".join([f"{k}) {v}" for k, v in q_data.get("options", {}).items()])
             alt_q_text = f"{raw_q} Options: {raw_opts}"
@@ -275,10 +213,7 @@ def create_images_for_question(item, output_dir="temp"):
             alt_a_text = f"Correct Answer: {raw_ans}. Explanation: {raw_exp} {distractor_logic}"
 
             context_data = {
-                "logo_base64": logo_base64,
-                "category": category,
-                "exam": exam,
-                "format_title": title,
+                "logo_base64": logo_base64, "category": category, "exam": exam, "format_title": title,
                 "distractor_logic": format_highlights(distractor_logic, dynamic_keywords_list),
                 "question_text": format_highlights(q_data.get("question_text", ""), dynamic_keywords_list),
                 "statements": [format_highlights(s, dynamic_keywords_list) for s in q_data.get("statements", [])],
@@ -292,7 +227,6 @@ def create_images_for_question(item, output_dir="temp"):
             page.set_content(template.render(**context_data))
             page.evaluate("document.fonts.ready")
             page.evaluate(AUTO_SCALE_JS)
-
             q_filename = f"{output_dir}/{item_id}_{format_key}_Q.png"
             page.screenshot(path=q_filename)
             generated_files.append(q_filename)
@@ -301,7 +235,6 @@ def create_images_for_question(item, output_dir="temp"):
             page.set_content(template.render(**context_data))
             page.evaluate("document.fonts.ready")
             page.evaluate(AUTO_SCALE_JS)
-
             a_filename = f"{output_dir}/{item_id}_{format_key}_A.png"
             page.screenshot(path=a_filename)
             generated_files.append(a_filename)
@@ -323,12 +256,22 @@ def send_album_to_telegram(image_paths, caption):
     try:
         response = requests.post(url, data=payload, files=files, timeout=30)
         success = response.status_code == 200
+        if not success:
+            print(f"Telegram API Error: {response.text}")
     except requests.exceptions.RequestException as e:
         print(f"Network error: {e}")
         success = False
     finally:
         for f in files.values(): f.close()
     return success
+
+def send_text_to_telegram(text):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text[:4000]} # Truncate safely just in case
+    try:
+        requests.post(url, data=payload, timeout=30)
+    except Exception as e:
+        print(f"Failed to send metadata text: {e}")
 
 def main():
     TEST_MODE = False
@@ -373,20 +316,27 @@ def main():
         related_entities = [ent.get("name") for ent in item.get("concept_map", {}).get("related_entities", []) if "name" in ent]
         all_keywords = ", ".join(semantic_kws + related_entities)
 
-        # REORDERED CAPTION WITH FULL Q&A ALT TEXT
-        full_caption = (
-            f"Caption:\n{base_caption}\n\n"
+        # 1. Short caption directly attached to the images to satisfy the 1024 limit
+        image_caption = f"{base_caption}\n\n{hashtags}"
+
+        # 2. Huge SEO & Alt Text block sent as a standalone text message right after
+        seo_text_block = (
             f"Title:\n{title}\n\n"
             f"Primary Semantic Keywords:\n{all_keywords}\n\n"
-            f"Hashtags:\n{hashtags}\n\n"
             f"Alt Text (Question Image):\n{alt_q}\n\n"
             f"Alt Text (Answer/Explanation Image):\n{alt_a}"
         )
         
         if generated_images:
-            success = send_album_to_telegram(generated_images, full_caption)
+            # Send the images with the short caption first
+            success = send_album_to_telegram(generated_images, image_caption)
             if success:
-                print(f"Successfully posted {item_id}!")
+                print(f"Successfully posted images for {item_id}!")
+                
+                # Send the SEO/Alt-Text block to Telegram as a text message
+                send_text_to_telegram(seo_text_block)
+                print(f"Successfully sent metadata text for {item_id}!")
+
                 processed_history.append(item_id)
                 for img in generated_images: os.remove(img)
                 post_count += 1 
