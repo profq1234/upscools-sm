@@ -227,6 +227,10 @@ def create_images_for_question(item, output_dir="temp"):
     semantic_keywords = item.get("seo", {}).get("default_semantic_keywords", [])
     related_entities = [ent.get("name") for ent in item.get("concept_map", {}).get("related_entities", []) if "name" in ent]
     dynamic_keywords_list = semantic_keywords + related_entities
+    
+    # Variables to hold raw text for Alt generation later
+    alt_q_text = ""
+    alt_a_text = ""
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -261,6 +265,14 @@ def create_images_for_question(item, output_dir="temp"):
                 if not s: continue
                 if not s.endswith("."): s += "."
                 exp_points.append(format_highlights(s, dynamic_keywords_list))
+                
+            # Extract raw text for Accessibility (Alt Text)
+            raw_q = q_data.get("question_text", "")
+            raw_opts = " | ".join([f"{k}) {v}" for k, v in q_data.get("options", {}).items()])
+            alt_q_text = f"{raw_q} Options: {raw_opts}"
+            
+            raw_ans = q_data.get("correct_answer", "")
+            alt_a_text = f"Correct Answer: {raw_ans}. Explanation: {raw_exp} {distractor_logic}"
 
             context_data = {
                 "logo_base64": logo_base64,
@@ -295,7 +307,7 @@ def create_images_for_question(item, output_dir="temp"):
             generated_files.append(a_filename)
 
         browser.close()
-        return generated_files
+        return generated_files, alt_q_text, alt_a_text
 
 def send_album_to_telegram(image_paths, caption):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMediaGroup"
@@ -347,34 +359,28 @@ def main():
             continue
             
         print(f"Processing target: {item_id}")
-        generated_images = create_images_for_question(item)
+        generated_images, alt_q, alt_a = create_images_for_question(item)
         
         if TEST_MODE:
             print(f"\n🛑 TEST MODE ACTIVE. Review: {generated_images}")
             break
             
-        # --- NEW RICH METADATA CAPTION BUILDER ---
         title = item.get("seo", {}).get("base_meta_title", "UPSC Practice Question")
         base_caption = item.get("social_media_export", {}).get("ctr_booster_caption", "")
         hashtags = " ".join(item.get("social_media_export", {}).get("hashtags", []))
         
-        # Combine default semantic keywords and related entity names
         semantic_kws = item.get("seo", {}).get("default_semantic_keywords", [])
         related_entities = [ent.get("name") for ent in item.get("concept_map", {}).get("related_entities", []) if "name" in ent]
         all_keywords = ", ".join(semantic_kws + related_entities)
-        
-        # Build the dynamic alt texts
-        alt_q = f"Multiple-choice practice question evaluating {title}, specifically testing factual recall."
-        alt_a = f"Educational explanation revealing the correct answer and distractor logic for {title}."
 
-        # Compile it all into the final caption string exactly as requested
+        # REORDERED CAPTION WITH FULL Q&A ALT TEXT
         full_caption = (
-            f"Title: {title}\n\n"
             f"Caption:\n{base_caption}\n\n"
+            f"Title:\n{title}\n\n"
             f"Primary Semantic Keywords:\n{all_keywords}\n\n"
+            f"Hashtags:\n{hashtags}\n\n"
             f"Alt Text (Question Image):\n{alt_q}\n\n"
-            f"Alt Text (Answer/Explanation Image):\n{alt_a}\n\n"
-            f"Hashtags:\n{hashtags}"
+            f"Alt Text (Answer/Explanation Image):\n{alt_a}"
         )
         
         if generated_images:
