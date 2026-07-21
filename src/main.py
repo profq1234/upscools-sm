@@ -3,15 +3,16 @@ import json
 import re
 import requests
 import base64
+import html
 from jinja2 import Template
 from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Telegram Credentials
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# Telegram Credentials (Updated to match your .env file)
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID_SOCIAL_MEDIA")
 
 # Pinterest Credentials (OAuth 2.0)
 PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN")
@@ -20,21 +21,21 @@ PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID")
 def format_highlights(text, auto_keywords=None):
     if not text:
         return ""
-    
+
     text = re.sub(r'\*\*(.*?)\*\*', r'<span class="bg-yellow-300/60 semantic-bold px-[0.2em] rounded">\1</span>', text)
-    
+
     if auto_keywords:
         keywords = sorted([k for k in auto_keywords if k], key=len, reverse=True)
         if keywords:
             escaped_kws = [re.escape(kw.strip()) for kw in keywords if kw.strip()]
             pattern = re.compile(rf'\b({"|".join(escaped_kws)})\b', re.IGNORECASE)
-            
+
             parts = re.split(r'(<[^>]+>)', text)
             for i in range(0, len(parts), 2):
                 if parts[i]:
                     parts[i] = pattern.sub(r'<span class="bg-yellow-300/60 semantic-bold px-[0.2em] rounded">\1</span>', parts[i])
             text = "".join(parts)
-            
+
     return text.replace("\n", "<br>")
 
 # ---------------------------------------------------------
@@ -50,21 +51,21 @@ HTML_TEMPLATE = """
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; padding: 0; }
-        .font-primary { 
-            font-family: 'Poppins', sans-serif; 
+        .font-primary {
+            font-family: 'Poppins', sans-serif;
             letter-spacing: 0.01em;
         }
         .semantic-bold {
-            font-weight: 700; 
+            font-weight: 700;
         }
     </style>
 </head>
 <body class="m-0 p-0 w-screen h-screen flex flex-col overflow-hidden">
 
     <div class="relative w-full h-full bg-gradient-to-br from-slate-300 via-slate-400 to-slate-500 p-[8px] flex flex-col">
-        
+
         <div class="relative flex-1 bg-[#fcfcfc] rounded-sm shadow-[inset_0_4px_20px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col p-6 pb-10">
-            
+
             <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/50 to-transparent pointer-events-none z-0"></div>
             <div class="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none z-0"></div>
 
@@ -83,9 +84,9 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div id="content-boundary" class="flex-1 flex flex-col justify-center w-full min-h-0 relative mb-4">
-                
+
                     {% if not is_explanation %}
-                    
+
                     <!-- QUESTION SLIDE -->
                     <div id="scale-target" class="flex flex-col space-y-[0.8em] w-full" style="font-size: 14px;">
                         <div class="w-[98%] mx-auto transform -translate-x-[2%] border-[0.13em] border-red-800 rounded-[1em] p-[1em] bg-white/70 backdrop-blur-sm shadow-sm">
@@ -148,7 +149,7 @@ HTML_TEMPLATE = """
 
                 </div>
             </div>
-            
+
             <div class="absolute bottom-3 right-4 flex items-center opacity-85">
                 {% if logo_base64 %}
                 <img src="data:image/svg+xml;base64,{{ logo_base64 }}" alt="Logo" class="w-7 h-7 rounded-md shadow-sm border border-slate-300 bg-white">
@@ -170,25 +171,25 @@ AUTO_SCALE_JS = """
 () => {
     const boundary = document.getElementById('content-boundary');
     const target = document.getElementById('scale-target');
-    
+
     if (!boundary || !target) return;
-    
+
     let currentSize = 14.0;
     const minSize = 9.0;
     const maxSize = 26.0;
     const step = 0.5;
-    
+
     while (target.scrollHeight > boundary.clientHeight && currentSize > minSize) {
         currentSize -= step;
         target.style.fontSize = currentSize + 'px';
     }
-    
+
     while (target.scrollHeight < (boundary.clientHeight - 20) && currentSize < maxSize) {
         currentSize += step;
         target.style.fontSize = currentSize + 'px';
-        
+
         if (target.scrollHeight > boundary.clientHeight) {
-            currentSize -= step; 
+            currentSize -= step;
             target.style.fontSize = currentSize + 'px';
             break;
         }
@@ -200,7 +201,7 @@ def create_images_for_question(item, output_dir="temp"):
     os.makedirs(output_dir, exist_ok=True)
     template = Template(HTML_TEMPLATE)
     generated_formats = {}
-    
+
     logo_base64 = ""
     logo_path = os.path.join(os.getcwd(), "assets", "square-logo.svg")
     try:
@@ -208,7 +209,7 @@ def create_images_for_question(item, output_dir="temp"):
             logo_base64 = base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
         print(f"Warning: Could not load square-logo.svg. Error: {e}")
-    
+
     formats = {
         "format_1_evidence_inference": "UPSC Type I: Evidence & Inference",
         "format_2_assertion_reason": "UPSC Type II: Assertion & Reason",
@@ -219,15 +220,15 @@ def create_images_for_question(item, output_dir="temp"):
     category = item.get("concept_map", {}).get("primary_theme", "Polity Practice")
     exam = item.get("schema_metadata", {}).get("source_exam", "Prelims")
     item_id = item.get("original_id", "unknown_id")
-    
+
     semantic_keywords = item.get("seo", {}).get("default_semantic_keywords", [])
     related_entities = [ent.get("name") for ent in item.get("concept_map", {}).get("related_entities", []) if "name" in ent]
     dynamic_keywords_list = semantic_keywords + related_entities
-    
+
     with sync_playwright() as p:
         browser = p.chromium.launch()
         context = browser.new_context(
-            viewport={"width": 540, "height": 675}, 
+            viewport={"width": 540, "height": 675},
             device_scale_factor=2.0
         )
         page = context.new_page()
@@ -235,13 +236,13 @@ def create_images_for_question(item, output_dir="temp"):
         for format_key, title in formats.items():
             if format_key not in item:
                 continue
-                
+
             q_data = item[format_key]
-            
+
             distractor_logic = (
-                q_data.get("distractor_logic") or 
-                item.get("distractor_logic") or 
-                item.get("concept_map", {}).get("distractor_logic") or 
+                q_data.get("distractor_logic") or
+                item.get("distractor_logic") or
+                item.get("concept_map", {}).get("distractor_logic") or
                 ""
             )
 
@@ -251,7 +252,7 @@ def create_images_for_question(item, output_dir="temp"):
                 lines = raw_exp.split("\n")
             else:
                 lines = raw_exp.split(". ")
-                
+
             for s in lines:
                 s = s.strip()
                 if not s: continue
@@ -284,7 +285,7 @@ def create_images_for_question(item, output_dir="temp"):
             context_data["is_explanation"] = True
             page.set_content(template.render(**context_data))
             page.evaluate("document.fonts.ready")
-            page.evaluate(AUTO_SCALE_JS) 
+            page.evaluate(AUTO_SCALE_JS)
             a_filename = f"{output_dir}/{item_id}_{format_key}_A.png"
             page.screenshot(path=a_filename)
 
@@ -298,8 +299,9 @@ def create_images_for_question(item, output_dir="temp"):
 # ---------------------------------------------------------
 def send_album_to_telegram(image_paths, caption):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("❌ Telegram Error: TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA or TELEGRAM_CHAT_ID_SOCIAL_MEDIA missing in .env")
         return False
-        
+
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMediaGroup"
     media = []
     files = {}
@@ -309,36 +311,58 @@ def send_album_to_telegram(image_paths, caption):
         if i == 0: media_item["caption"] = caption
         media.append(media_item)
         files[file_key] = open(path, 'rb')
-        
+
     payload = {"chat_id": TELEGRAM_CHAT_ID, "media": json.dumps(media)}
     try:
         response = requests.post(url, data=payload, files=files, timeout=30)
-        success = response.status_code == 200
+        if response.status_code != 200:
+            print(f"❌ Telegram Album API Error ({response.status_code}): {response.text}")
+            return False
+        return True
     except requests.exceptions.RequestException as e:
-        print(f"Telegram Network error: {e}")
-        success = False
+        print(f"❌ Telegram Network error: {e}")
+        return False
     finally:
         for f in files.values(): f.close()
-    return success
+
+def send_text_to_telegram(text):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("❌ Telegram Error: TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA or TELEGRAM_CHAT_ID_SOCIAL_MEDIA missing in .env")
+        return False
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=30)
+        if response.status_code != 200:
+            print(f"❌ Telegram Text API Error ({response.status_code}): {response.text}")
+            return False
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Telegram text error: {e}")
+        return False
 
 def send_pin_to_pinterest(image_path, title, description, destination_link):
     if not PINTEREST_ACCESS_TOKEN or not PINTEREST_BOARD_ID:
         print("Skipping Pinterest: API keys not configured in .env")
         return False
     try:
-        import base64
         api_base = os.getenv("PINTEREST_API_BASE", "https://api-sandbox.pinterest.com/v5")
         pin_create_url = f"{api_base}/pins"
-        
+
         headers = {
             "Authorization": f"Bearer {PINTEREST_ACCESS_TOKEN}",
             "Content-Type": "application/json"
         }
-        
+
         with open(image_path, "rb") as image_file:
             image_data = image_file.read()
             image_base64 = base64.b64encode(image_data).decode("utf-8")
-            
+
         payload = {
             "board_id": PINTEREST_BOARD_ID,
             "title": str(title)[:100],
@@ -350,7 +374,7 @@ def send_pin_to_pinterest(image_path, title, description, destination_link):
                 "data": image_base64
             }
         }
-        
+
         response = requests.post(pin_create_url, headers=headers, json=payload)
         if response.status_code == 201:
             print("Successfully posted pin to Pinterest!")
@@ -363,78 +387,139 @@ def send_pin_to_pinterest(image_path, title, description, destination_link):
         return False
 
 def main():
-    TEST_MODE = False  # Set to False to go live!
+    TEST_MODE = False        # Set to False to run API calls live
+    ENABLE_PINTEREST = False # Disabled for testing mode as requested
+
     state_file = "state/processed_history.json"
     if os.path.exists(state_file):
         with open(state_file, "r") as f: processed_history = json.load(f)
     else: processed_history = []
-    
+
     data_file = "data/polity/upsc_polity_data.json"
     if not os.path.exists(data_file):
         print(f"Data file not found: {data_file}")
         return
-        
+
     with open(data_file, "r", encoding="utf-8") as f:
         data = json.load(f)
         if isinstance(data, dict): data = [data]
-        
+
     for item in data:
         item_id = item.get("original_id")
         if item_id in processed_history and not TEST_MODE:
             print(f"Skipping {item_id}")
             continue
-            
+
         print(f"Processing target: {item_id}")
-        
+
         url_slug = item.get("url_slug", item_id)
-        destination_url = f"https://upscools.com/q/{url_slug}"
-        meta_title = item.get("seo", {}).get("base_meta_title", "UPSC Practice")
-        
-        # Pull social media payload and hashtags
+        destination_url = f"https://upscools.com/upsc-practice-questions/polity/{url_slug}"
+        meta_title = html.escape(item.get("seo", {}).get("base_meta_title", "UPSC Practice"))
+        keywords_list = item.get("seo", {}).get("default_semantic_keywords", [])
+        keywords_str = html.escape(", ".join(keywords_list))
+
         social_media = item.get("social_media_export", {})
-        hashtags = " ".join(social_media.get("hashtags", []))
-        
-        # Support for both NEW and OLD JSON structures
+        hashtags = html.escape(" ".join(social_media.get("hashtags", [])))
+
         captions_dict = social_media.get("ctr_booster_captions", {})
         fallback_caption = social_media.get("ctr_booster_caption", "")
-        
+
         generated_formats = create_images_for_question(item)
-        
+
         if TEST_MODE:
             print(f"\n🛑 TEST MODE ACTIVE. Images generated in temp folder.")
-            break 
-            
+            break
+
         all_formats_success = True
-        
-        # Iterate and post EACH format individually
-        for format_key, image_paths in generated_formats.items():
-            short_format_key = f"{format_key.split('_')[0]}_{format_key.split('_')[1]}"
-            
-            # Fetch specific caption, fallback to singular caption if not found
-            specific_caption = captions_dict.get(short_format_key)
-            if not specific_caption:
-                specific_caption = fallback_caption
+
+        # ==========================================
+        # WORKFLOW A: NEW DATA (Sequential Posts)
+        # ==========================================
+        if captions_dict:
+            print("🟢 NEW DATA DETECTED: Triggering separate posts workflow...")
+            for format_key, image_paths in generated_formats.items():
+                short_format_key = f"{format_key.split('_')[0]}_{format_key.split('_')[1]}"
                 
-            full_caption = f"{specific_caption}\n\n{hashtags}".strip()
-            
-            # Dispatch to Telegram (Q & A pair)
-            print(f"Sending {short_format_key} to Telegram...")
-            tg_success = send_album_to_telegram(image_paths, full_caption)
+                specific_caption = captions_dict.get(short_format_key, fallback_caption)
+                full_caption = f"{specific_caption}\n\n{hashtags}".strip()
+
+                print(f"Sending {short_format_key} images to Telegram...")
+                tg_success = send_album_to_telegram(image_paths, full_caption)
+                if not tg_success: all_formats_success = False
+
+                q_text = html.escape(item.get(format_key, {}).get("question_text", "N/A"))
+                exp_text = html.escape(item.get(format_key, {}).get("explanation", "N/A"))
+                alt_message = (
+                    f"📝 <b>Metadata & Alt Text ({short_format_key})</b>\n\n"
+                    f"<b>Title:</b> {meta_title}\n"
+                    f"<b>Keywords:</b> {keywords_str}\n"
+                    f"<b>Hashtags:</b> {hashtags}\n\n"
+                    f"<b>Question:</b> {q_text}\n\n"
+                    f"<b>Explanation:</b> {exp_text}"
+                )
+                print(f"Sending {short_format_key} metadata to Telegram...")
+                txt_success = send_text_to_telegram(alt_message)
+                if not txt_success: all_formats_success = False
+
+                if ENABLE_PINTEREST:
+                    q_image_path = image_paths[0]
+                    print(f"Sending {short_format_key} to Pinterest...")
+                    send_pin_to_pinterest(q_image_path, meta_title, full_caption, destination_url)
+
+                for img in image_paths:
+                    if os.path.exists(img): os.remove(img)
+
+        # ==========================================
+        # WORKFLOW B: OLD DATA (Combined Post)
+        # ==========================================
+        else:
+            print("🟡 OLD DATA DETECTED: Triggering combined album workflow...")
+            all_image_paths = []
+            for paths in generated_formats.values():
+                all_image_paths.extend(paths)
+
+            full_caption = f"{fallback_caption}\n\n{hashtags}".strip()
+
+            print("Sending Combined Album to Telegram...")
+            tg_success = send_album_to_telegram(all_image_paths, full_caption)
             if not tg_success: all_formats_success = False
+
+            combined_alt_message = (
+                f"📝 <b>Metadata & Alt Text (All Formats)</b>\n\n"
+                f"<b>Title:</b> {meta_title}\n"
+                f"<b>Keywords:</b> {keywords_str}\n"
+                f"<b>Hashtags:</b> {hashtags}\n\n"
+            )
             
-            # Dispatch to Pinterest (Q image only for funnel)
-            q_image_path = image_paths[0]
-            print(f"Sending {short_format_key} to Pinterest...")
-            pin_success = send_pin_to_pinterest(q_image_path, meta_title, full_caption, destination_url)
-            
-            # Cleanup processed images
-            for img in image_paths:
-                if os.path.exists(img): os.remove(img)
+            for format_key in generated_formats.keys():
+                short_format_key = f"{format_key.split('_')[0]}_{format_key.split('_')[1]}"
+                q_text = html.escape(item.get(format_key, {}).get("question_text", "N/A"))
+                exp_text = html.escape(item.get(format_key, {}).get("explanation", "N/A"))
                 
+                combined_alt_message += (
+                    f"<b>--- {short_format_key} ---</b>\n"
+                    f"<b>Q:</b> {q_text}\n"
+                    f"<b>A:</b> {exp_text}\n\n"
+                )
+            
+            print(f"Sending combined metadata to Telegram...")
+            txt_success = send_text_to_telegram(combined_alt_message)
+            if not txt_success: all_formats_success = False
+
+            if ENABLE_PINTEREST and all_image_paths:
+                print("Sending first image to Pinterest...")
+                send_pin_to_pinterest(all_image_paths[0], meta_title, full_caption, destination_url)
+
+            for img in all_image_paths:
+                if os.path.exists(img): os.remove(img)
+
         if all_formats_success and not TEST_MODE:
-            print(f"Successfully processed all formats for {item_id}!")
+            print(f"Successfully processed {item_id}!")
             processed_history.append(item_id)
-        break
+            break
+        elif not all_formats_success:
+            print(f"❌ Failed to process {item_id} due to API errors.")
+            break
 
     if not TEST_MODE:
         with open(state_file, "w") as f:
