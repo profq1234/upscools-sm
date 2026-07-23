@@ -1,7 +1,9 @@
 name: Headless Video Render PoC
 
 on:
-  workflow_dispatch: 
+  push:
+    branches:
+      - test-reels-render
 
 jobs:
   render-video:
