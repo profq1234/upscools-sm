@@ -68,6 +68,9 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA: ${{ secrets.TELEGRAM_BOT_TOKEN_SOCIAL_MEDIA }}
           TELEGRAM_CHAT_ID_SOCIAL_MEDIA: ${{ secrets.TELEGRAM_CHAT_ID_SOCIAL_MEDIA }}
+          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_BOARD_ID: ${{ secrets.PINTEREST_BOARD_ID }}
+          PINTEREST_API_BASE: ${{ secrets.PINTEREST_API_BASE }}
         run: |
           python -u src/main.py
 
