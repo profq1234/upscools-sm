@@ -1,0 +1,39 @@
+name: Headless Video Render PoC
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  render-video:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install System Dependencies (FFmpeg & Xvfb)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg xvfb
+
+      - name: Install Python Dependencies
+        run: |
+          pip install playwright jinja2
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Execute Render Script on Virtual Display
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1080x1920x24" python src/test_video_render.py
+
+      - name: Upload Video Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: headless-test-reel
+          path: test_reels/*_reel_production.mp4
+          retention-days: 3
